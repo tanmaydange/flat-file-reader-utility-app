@@ -10,8 +10,14 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
+import org.springframework.batch.item.database.JdbcBatchItemWriter;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.mapping.PassThroughLineMapper;
+import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -36,44 +42,43 @@ public class BatchConfig {
 
 
     @Bean
-    public Job processDataFileJob(JobCompletionNotificationListener listener){
+    public Job processDataFileJob(JobCompletionNotificationListener listener, JdbcBatchItemWriter<Grade> writer){
         return jobBuilderFactory.get("processDataFileJob")
                 .incrementer(new RunIdIncrementer())
                 .listener(listener)
-                .start(readAndParseDataFileStep())
+                .start(readAndParseDataFileStep(writer))
                 .build();
     }
 
     @Bean
-    public Step readAndParseDataFileStep() {
+    public Step readAndParseDataFileStep(JdbcBatchItemWriter<Grade> writer) {
         return stepBuilderFactory.get("readAndParseDataFileStep")
-                .<String, String> chunk(5)
+                .<Grade, Grade> chunk(5)
                 .reader(itemReader(null))
-                .writer(i->i.stream().forEach(j->createGrade(j)))
+                .writer(writer)
                 .build();
     }
 
-    private void createGrade(String j) {
-        String[] val=j.split(",");
-                Grade grade = new Grade(val[0],val[1], Integer.valueOf(val[2]),
-                        Integer.valueOf(val[3]),Integer.valueOf(val[4]),Integer.valueOf(val[5]));
-                String sql=  "INSERT INTO GRADE (fname, lname, physicsMarks,mathsMarks,artsMarks,bioMarks) VALUES (\'"
-                        +  grade.getFname()+"\',\'"+ grade.getLname()+"\',"+grade.getPhysicsMarks()+","
-                        +grade.getMathsMarks()+","+grade.getArtsMarks()+","+grade.getBioMarks()+")";
-
-        try {
-            dataSource.getConnection().createStatement().execute(sql);
-        } catch (SQLException throwables) {
-            log.error("Error Occurred in Databse execution" + throwables);
-        }
+    @Bean
+    public JdbcBatchItemWriter<Grade> writer(DataSource dataSource){
+        return new JdbcBatchItemWriterBuilder<Grade>()
+                .itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
+                .sql("INSERT INTO GRADE (fname, lname, physicsMarks, mathsMarks, artsMarks, bioMarks) VALUES (:fname, :lname, :physicsMarks, :mathsMarks, :artsMarks, :bioMarks)")
+                .dataSource(dataSource)
+                .build();
     }
 
     @Bean
     @StepScope
-    public FlatFileItemReader<String> itemReader(@Value("#{jobParameters[file_path]}") String filePath) {
-        FlatFileItemReader<String> reader = new FlatFileItemReader<>();
+    public FlatFileItemReader<Grade> itemReader(@Value("#{jobParameters[file_path]}") String filePath) {
+        FlatFileItemReader<Grade> reader = new FlatFileItemReader<>();
         reader.setResource(new FileSystemResource(filePath));
-        reader.setLineMapper(new PassThroughLineMapper());
+
+        DefaultLineMapper<Grade> lineMapper = new DefaultLineMapper<>();
+        lineMapper.setLineTokenizer(new DelimitedLineTokenizer());
+        lineMapper.setFieldSetMapper(new GradeFieldSetCSVMapper());
+        reader.setLineMapper(lineMapper);
+        reader.open(new ExecutionContext());
         return reader;
     }
 
