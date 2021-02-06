@@ -47,8 +47,10 @@ public class IntegrationConfig {
     @Bean
     public MessageSource<File> fileReadingMessageSource() {
         FileReadingMessageSource source = new FileReadingMessageSource();
-        source.setDirectory(new File("csvFolder"));
-        source.setFilter(new SimplePatternFileListFilter("*.csv"));
+        source.setDirectory(new File("fixedLenghtFileFolder"));
+        source.setFilter(new SimplePatternFileListFilter("*.txt"));
+//        source.setDirectory(new File("csvFolder"));
+  //      source.setFilter(new SimplePatternFileListFilter("*.csv"));
         source.setUseWatchService(true);
         source.setWatchEvents(FileReadingMessageSource.WatchEventType.CREATE);
         return source;

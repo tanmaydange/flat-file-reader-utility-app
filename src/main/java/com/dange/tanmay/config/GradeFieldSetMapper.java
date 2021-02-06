@@ -5,7 +5,7 @@ import org.springframework.batch.item.file.mapping.FieldSetMapper;
 import org.springframework.batch.item.file.transform.FieldSet;
 import org.springframework.validation.BindException;
 
-public class GradeFieldSetCSVMapper implements FieldSetMapper<Grade> {
+public class GradeFieldSetMapper implements FieldSetMapper<Grade> {
     @Override
     public Grade mapFieldSet(FieldSet fieldSet) throws BindException {
         Grade grade = new Grade();
