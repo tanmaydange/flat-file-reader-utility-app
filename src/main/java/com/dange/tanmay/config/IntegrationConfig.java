@@ -7,6 +7,7 @@ import org.springframework.batch.integration.launch.JobLaunchingMessageHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.core.MessageSource;
 import org.springframework.integration.dsl.IntegrationFlow;
@@ -30,10 +31,10 @@ public class IntegrationConfig {
     }
 
     @Bean
-    public IntegrationFlow sampleFlow() {
+    public IntegrationFlow sampleFlow(@Autowired MessageSource<File> source) {
         // @formatter:off
         return IntegrationFlows //
-                .from(fileReadingMessageSource(), c -> c.poller(Pollers.fixedDelay(5000)))//
+                .from(source, c -> c.poller(Pollers.fixedDelay(5000)))//
                 .channel(inputChannel()) //
                 .transform(fileMessageToJobRequest()) //
                 .handle(jobLaunchingMessageHandler()) //
@@ -44,13 +45,23 @@ public class IntegrationConfig {
         // @formatter:on
     }
 
+    @Profile("CSV")
+    @Bean
+    public MessageSource<File> csvfileReadingMessageSource() {
+        FileReadingMessageSource source = new FileReadingMessageSource();
+        source.setDirectory(new File("csvFolder"));
+        source.setFilter(new SimplePatternFileListFilter("*.csv"));
+        source.setUseWatchService(true);
+        source.setWatchEvents(FileReadingMessageSource.WatchEventType.CREATE);
+        return source;
+    }
+
+    @Profile("FLF")
     @Bean
     public MessageSource<File> fileReadingMessageSource() {
         FileReadingMessageSource source = new FileReadingMessageSource();
-        source.setDirectory(new File("fixedLenghtFileFolder"));
+        source.setDirectory(new File("fixedLengthFileFolder"));
         source.setFilter(new SimplePatternFileListFilter("*.txt"));
-//        source.setDirectory(new File("csvFolder"));
-  //      source.setFilter(new SimplePatternFileListFilter("*.csv"));
         source.setUseWatchService(true);
         source.setWatchEvents(FileReadingMessageSource.WatchEventType.CREATE);
         return source;
@@ -66,7 +77,7 @@ public class IntegrationConfig {
 
     @Bean
     JobLaunchingMessageHandler jobLaunchingMessageHandler() {
-        JobLaunchingMessageHandler handler = new JobLaunchingMessageHandler(jobLauncher);
-        return handler;
+        return new JobLaunchingMessageHandler(jobLauncher);
     }
+    
 }

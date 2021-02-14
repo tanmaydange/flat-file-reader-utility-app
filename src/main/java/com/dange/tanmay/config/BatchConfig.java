@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.FileSystemResource;
 import javax.sql.DataSource;
 
@@ -47,7 +48,8 @@ public class BatchConfig {
      * @param writer
      * @return
      */
-  //  @Bean
+    @Profile("CSV")
+    @Bean
     public Job processCsvFileJob(JobCompletionNotificationListener listener, JdbcBatchItemWriter<Grade> writer){
         return jobBuilderFactory.get("processCsvFileJob")
                 .incrementer(new RunIdIncrementer())
@@ -109,6 +111,7 @@ public class BatchConfig {
      * @param writer
      * @return
      */
+    @Profile("FLF")
     @Bean
     public Job processFixedLengthFileJob(JobCompletionNotificationListener listener, JdbcBatchItemWriter<Grade> writer){
         return jobBuilderFactory.get("processFixedLengthFileJob")
